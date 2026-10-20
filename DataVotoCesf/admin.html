@@ -33,7 +33,15 @@
     <header class="header" style="border-radius: var(--radius); margin-top: 1rem;">
       <h1>Painel de Análise - DataVotoCesf</h1>
       <p>Resultados Consolidados da Pesquisa Socioeconômica e Eleitoral</p>
-      <button id="btn-logout" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Sair</button>
+      
+      <div style="margin-top: 1rem; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+        <button id="btn-limpar-dados" style="padding: 0.5rem 1rem; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; transition: 0.2s;">
+          🗑️ Limpar Base de Dados
+        </button>
+        <button id="btn-logout" style="padding: 0.5rem 1rem; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+          Sair
+        </button>
+      </div>
     </header>
 
     <!-- Métricas Gerais (Cards de Agregação) -->
