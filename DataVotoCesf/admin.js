@@ -2,7 +2,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebas
 import {
   getFirestore,
   collection,
-  getDocs
+  getDocs,
+  deleteDoc,
+  doc
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 
 // Configuração do Firebase
@@ -16,6 +18,7 @@ const firebaseConfig = {
   measurementId: "G-EHRDCTFCFH"
 };
 
+// Inicialização
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
@@ -28,6 +31,10 @@ const inputSenha = document.getElementById("senha-admin");
 const loginContainer = document.getElementById("login-container");
 const dashboardContainer = document.getElementById("dashboard-container");
 const btnLogout = document.getElementById("btn-logout");
+const btnLimparDados = document.getElementById("btn-limpar-dados");
+
+// Controle de instâncias dos gráficos para evitar erros de re-renderização
+let instanciacoesGraficos = {};
 
 // Controle de Login
 formLogin.addEventListener("submit", (e) => {
@@ -42,6 +49,7 @@ formLogin.addEventListener("submit", (e) => {
   }
 });
 
+// Logout
 btnLogout.addEventListener("click", () => {
   dashboardContainer.style.display = "none";
   loginContainer.style.display = "block";
@@ -54,15 +62,17 @@ async function carregarDadosEGerarRelatorios() {
     const querySnapshot = await getDocs(collection(db, "datavoto_cesf_respostas"));
     const respostas = [];
 
-    querySnapshot.forEach((doc) => {
-      respostas.push(doc.data());
+    querySnapshot.forEach((documento) => {
+      respostas.push(documento.data());
     });
 
     const total = respostas.length;
     document.getElementById("total-respostas").textContent = total;
 
     if (total === 0) {
-      alert("Nenhuma resposta encontrada no banco de dados.");
+      document.getElementById("media-moradores").textContent = "0";
+      document.getElementById("media-trabalhadores").textContent = "0";
+      limparGraficosExistentes();
       return;
     }
 
@@ -77,15 +87,11 @@ async function carregarDadosEGerarRelatorios() {
     document.getElementById("media-trabalhadores").textContent = mediaTrabalhadores;
 
     // 2. Processamento para Gráficos
-    
-    // Contagem: Presidência
     const contagemPresidencia = contagemFrequencia(respostas, "votoPresidente");
-    // Contagem: Certeza do Voto
     const contagemCerteza = contagemFrequencia(respostas, "certezaVoto");
-    // Contagem: Bairros
     const contagemBairros = contagemFrequencia(respostas, "bairro");
-    
-    // Contagem: Pautas (Array)
+
+    // Contagem de Pautas (Array)
     const contagemPautas = {};
     respostas.forEach(r => {
       if (Array.isArray(r.pautas)) {
@@ -96,7 +102,7 @@ async function carregarDadosEGerarRelatorios() {
     });
 
     // 3. Renderização dos Gráficos com Chart.js
-    renderizarGraficoPie("chartPresidencia", Object.keys(contagemPresidencia), Object.values(contagemPresidencia), "Votos");
+    renderizarGraficoPie("chartPresidencia", Object.keys(contagemPresidencia), Object.values(contagemPresidencia));
     renderizarGraficoDoughnut("chartCerteza", Object.keys(contagemCerteza), Object.values(contagemCerteza));
     renderizarGraficoBar("chartBairros", Object.keys(contagemBairros), Object.values(contagemBairros), "Respostas por Bairro");
     renderizarGraficoBar("chartPautas", Object.keys(contagemPautas), Object.values(contagemPautas), "Votos em Pautas");
@@ -107,7 +113,56 @@ async function carregarDadosEGerarRelatorios() {
   }
 }
 
-// Função auxiliar para contar frequências de strings
+// Funcionalidade do Botão Limpar Base de Dados
+if (btnLimparDados) {
+  btnLimparDados.addEventListener("click", async () => {
+    // Confirmação dupla de segurança
+    const confirmacao1 = confirm("⚠️ ATENÇÃO: Tem certeza de que deseja apagar TODAS as respostas da base de dados?");
+    
+    if (!confirmacao1) return;
+
+    const confirmacao2 = prompt('Digite "DELETAR" para confirmar a exclusão permanente dos dados:');
+
+    if (confirmacao2 !== "DELETAR") {
+      alert("Ação cancelada. A palavra de confirmação digitada está incorreta.");
+      return;
+    }
+
+    btnLimparDados.disabled = true;
+    btnLimparDados.textContent = "Apagando dados...";
+
+    try {
+      const querySnapshot = await getDocs(collection(db, "datavoto_cesf_respostas"));
+
+      if (querySnapshot.empty) {
+        alert("A base de dados já está vazia!");
+        return;
+      }
+
+      // Deleta cada documento da coleção
+      const promisesDelecao = [];
+      querySnapshot.forEach((documento) => {
+        promisesDelecao.push(deleteDoc(doc(db, "datavoto_cesf_respostas", documento.id)));
+      });
+
+      await Promise.all(promisesDelecao);
+
+      alert("Base de dados limpa com sucesso!");
+      
+      // Recarrega as métricas e limpa os gráficos na tela
+      carregarDadosEGerarRelatorios();
+
+    } catch (erro) {
+      console.error("Erro ao limpar a base de dados:", erro);
+      alert("Ocorreu um erro ao tentar apagar os dados. Verifique a conexão ou as permissões no Firestore.");
+    } finally {
+      btnLimparDados.disabled = false;
+      btnLimparDados.textContent = "🗑️ Limpar Base de Dados";
+    }
+  });
+}
+
+// Função auxiliar para contar frequências
 function contagemFrequencia(arr, chave) {
   return arr.reduce((acc, obj) => {
     const valor = obj[chave] || "Não Informado";
@@ -116,13 +171,28 @@ function contagemFrequencia(arr, chave) {
   }, {});
 }
 
+// Destruição de gráficos existentes antes de desenhar novos
+function destruirGraficoSeExiste(idElemento) {
+  if (instanciacoesGraficos[idElemento]) {
+    instanciacoesGraficos[idElemento].destroy();
+  }
+}
+
+function limparGraficosExistentes() {
+  Object.keys(instanciacoesGraficos).forEach(id => {
+    instanciacoesGraficos[id].destroy();
+  });
+  instanciacoesGraficos = {};
+}
+
 /* ==========================================================================
    Funções de Renderização com Chart.js (Estilo em Tons de Azul)
    ========================================================================== */
 const CORES_AZUL = ["#003366", "#0056b3", "#3385ff", "#80bdff", "#b3d7ff", "#002244", "#004488"];
 
-function renderizarGraficoPie(idElemento, labels, data, titulo) {
-  new Chart(document.getElementById(idElemento), {
+function renderizarGraficoPie(idElemento, labels, data) {
+  destruirGraficoSeExiste(idElemento);
+  instanciacoesGraficos[idElemento] = new Chart(document.getElementById(idElemento), {
     type: 'pie',
     data: {
       labels: labels,
@@ -135,7 +205,8 @@ function renderizarGraficoPie(idElemento, labels, data, titulo) {
 }
 
 function renderizarGraficoDoughnut(idElemento, labels, data) {
-  new Chart(document.getElementById(idElemento), {
+  destruirGraficoSeExiste(idElemento);
+  instanciacoesGraficos[idElemento] = new Chart(document.getElementById(idElemento), {
     type: 'doughnut',
     data: {
       labels: labels,
@@ -148,7 +219,8 @@ function renderizarGraficoDoughnut(idElemento, labels, data) {
 }
 
 function renderizarGraficoBar(idElemento, labels, data, labelDataset) {
-  new Chart(document.getElementById(idElemento), {
+  destruirGraficoSeExiste(idElemento);
+  instanciacoesGraficos[idElemento] = new Chart(document.getElementById(idElemento), {
     type: 'bar',
     data: {
       labels: labels,
