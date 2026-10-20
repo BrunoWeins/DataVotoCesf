@@ -1,90 +1,195 @@
-// 1. Importação dos módulos do Firebase (v10 SDK em ES Modules)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  serverTimestamp 
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// 2. Configurações do seu projeto no Firebase Console
-// (Insira aqui as credenciais passadas pelo integrante do Firebase)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
+
+import {
+    getFirestore,
+    collection,
+    addDoc,
+    serverTimestamp
+} from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+
+// Configuração do Firebase DataVotoCesf
 const firebaseConfig = {
-  apiKey: "SUA_API_KEY_AQUI",
-  authDomain: "seu-projeto.firebaseapp.com",
-  projectId: "seu-projeto-id",
-  storageBucket: "seu-projeto.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef"
+    apiKey: "AIzaSyB6tekjyarX_aKwfvCe-CeEvs0qLEUuASLQ",
+    authDomain: "datavotocesf.firebaseapp.com",
+    projectId: "datavotocesf",
+    storageBucket: "datavotocesf.firebasestorage.app",
+    messagingSenderId: "794786594690",
+    appId: "1:794786594690:web:2d86dcb5a9f3577ecc199b",
+    measurementId: "G-EHRDCTFCFH"
 };
 
-// Inicialização da aplicação e conexão com o Firestore
+// Inicialização
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Seleção do formulário
-const form = document.getElementById("form-pesquisa");
+console.log("Firebase inicializado!");
+console.log("Firestore preparado!");
 
-// 3. Ocultar ou desabilitar botão durante envio para evitar duplo clique
-const submitBtn = form.querySelector('button[type="submit"]');
+// Salva as respostas no Firestore
+async function salvarResposta(dados) {
+    const documento = await addDoc(
+        collection(db, "datavoto_cesf_respostas"),
+        {
+            faixaEtaria: dados.faixaEtaria,
+            genero: dados.genero,
+            bairro: dados.bairro,
+            rotina: dados.rotina,
+            rendaFamiliar: dados.rendaFamiliar,
+            moradores: dados.moradores,
+            trabalhadores: dados.trabalhadores,
+            certezaVoto: dados.certezaVoto,
+            votoPresidente: dados.votoPresidente,
+            pautas: dados.pautas,
+            criadoEm: serverTimestamp()
+        }
+    );
 
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
+    return documento.id;
+}
 
-  // Feedback visual para o usuário
-  submitBtn.disabled = true;
-  submitBtn.textContent = "Enviando...";
+// Formulário de pesquisa
+const formulario = document.getElementById("form-pesquisa");
 
-  try {
-    // Leitura dos campos de seleção e texto
-    const faixaEtaria = document.getElementById("faixa-etaria").value;
-    const bairro = document.getElementById("bairro").value;
-    const rendaFamiliar = document.getElementById("renda-familiar").value;
+if (formulario) {
+    formulario.addEventListener("submit", async (evento) => {
+        evento.preventDefault();
 
-    // CONVERSÃO OBRIGATÓRIA PARA NUMBER
-    const numMoradores = Number(document.getElementById("num-moradores").value);
-    const numTrabalhadores = Number(document.getElementById("num-trabalhadores").value);
+        // Identifica as duas seções do formulário original
+        const secoes = formulario.querySelectorAll(
+            ".form-group-section"
+        );
 
-    // Leitura dos seletores de rádio
-    const rotinaEl = document.querySelector('input[name="rotina"]:checked');
-    const rotina = rotinaEl ? rotinaEl.value : "";
+        const secaoSocioeconomica = secoes[0];
+        const secaoEleitoral = secoes[1];
 
-    const candidatoEl = document.querySelector('input[name="candidato-presidencia"]:checked');
-    const candidatoPresidencia = candidatoEl ? candidatoEl.value : "";
+        if (!secaoSocioeconomica || !secaoEleitoral) {
+            alert("Não foi possível localizar os campos do formulário.");
+            return;
+        }
 
-    const certezaEl = document.querySelector('input[name="certeza-voto"]:checked');
-    const certezaVoto = certezaEl ? certezaEl.value : "";
+        // Os selects estão nesta ordem no HTML original:
+        // faixa etária, gênero, bairro e renda familiar.
+        const selects = secaoSocioeconomica.querySelectorAll("select");
 
-    // Leitura das pautas prioritárias (Array de Checkboxes)
-    const pautasCheckboxes = document.querySelectorAll('input[name="pautas"]:checked');
-    const pautas = Array.from(pautasCheckboxes).map(cb => cb.value);
+        const faixaEtaria = selects[0]?.value ?? "";
+        const genero = selects[1]?.value ?? "";
+        const bairro = selects[2]?.value ?? "";
+        const rendaFamiliar = selects[3]?.value ?? "";
 
-    // Montagem do objeto de dados conforme exigido pelo professor
-    const respostaData = {
-      faixaEtaria: faixaEtaria,
-      bairro: bairro,
-      rotina: rotina,
-      rendaFamiliar: rendaFamiliar,
-      numMoradores: numMoradores,             // Gravado estritamente como Number
-      numTrabalhadores: numTrabalhadores,     // Gravado estritamente como Number
-      candidatoPresidencia: candidatoPresidencia,
-      certezaVoto: certezaVoto,
-      pautas: pautas,                         // Array de strings
-      criadoEm: serverTimestamp()             // Marcação temporal do servidor
-    };
+        // Captura a rotina
+        const rotinaSelecionada = formulario.querySelector(
+            'input[name="rotina"]:checked'
+        );
 
-    // Gravação assíncrona na coleção datavoto_cesf_respostas
-    await addDoc(collection(db, "datavoto_cesf_respostas"), respostaData);
+        // Captura o grau de certeza do voto
+        const camposCerteza = secaoEleitoral.querySelector(
+            ".form-control"
+        );
 
-    alert("Resposta enviada com sucesso! Obrigado pela participação.");
-    form.reset();
+        const certezaSelecionada = camposCerteza?.querySelector(
+            'input[type="radio"]:checked'
+        );
 
-  } catch (error) {
-    console.error("Erro ao gravar dados no Firestore:", error);
-    alert("Ocorreu um erro ao enviar seus dados. Por favor, tente novamente.");
-  } finally {
-    // Reativa o botão
-    submitBtn.disabled = false;
-    submitBtn.textContent = "Enviar Resposta";
-  }
-});
+        // Captura a intenção de voto presidencial.
+        // O HTML original usa três names diferentes para estas opções.
+        const camposVotoPresidente =
+            secaoEleitoral.querySelectorAll(".form-control")[1];
+
+        const votoSelecionado =
+            camposVotoPresidente?.querySelector(
+                'input[type="radio"]:checked'
+            );
+
+        // Captura todas as pautas selecionadas
+        const pautas = [
+            ...formulario.querySelectorAll(
+                'input[name="pautas"]:checked'
+            )
+        ].map((opcao) => opcao.value);
+
+        // Captura e valida os números
+        const moradoresTexto =
+            document.getElementById("num-moradores").value;
+
+        const trabalhadoresTexto =
+            document.getElementById("num-trabalhadores").value;
+
+        const moradores = Number(moradoresTexto);
+        const trabalhadores = Number(trabalhadoresTexto);
+
+        if (!rotinaSelecionada) {
+            alert("Selecione sua rotina atual.");
+            return;
+        }
+
+        if (!faixaEtaria || !genero || !bairro || !rendaFamiliar) {
+            alert("Preencha os campos socioeconômicos obrigatórios.");
+            return;
+        }
+
+        if (
+            moradoresTexto === "" ||
+            trabalhadoresTexto === "" ||
+            !Number.isInteger(moradores) ||
+            !Number.isInteger(trabalhadores) ||
+            moradores < 1 ||
+            moradores > 30 ||
+            trabalhadores < 0 ||
+            trabalhadores > moradores
+        ) {
+            alert(
+                "Confira os números de moradores e trabalhadores da residência."
+            );
+            return;
+        }
+
+        if (pautas.length === 0) {
+            alert("Selecione pelo menos uma pauta prioritária.");
+            return;
+        }
+
+        // Organiza os dados antes de enviar
+        const dados = {
+            faixaEtaria,
+            genero,
+            bairro,
+            rotina: rotinaSelecionada.value,
+            rendaFamiliar,
+            moradores,
+            trabalhadores,
+            certezaVoto: certezaSelecionada?.value ?? "",
+            votoPresidente: votoSelecionado?.value ?? "",
+            pautas
+        };
+
+        // Evita múltiplos envios enquanto salva
+        const botao = formulario.querySelector(".btn-submit");
+        const textoOriginal = botao?.textContent;
+
+        if (botao) {
+            botao.disabled = true;
+            botao.textContent = "Enviando...";
+        }
+
+        try {
+            await salvarResposta(dados);
+
+            alert("Resposta enviada com sucesso!");
+            formulario.reset();
+
+            console.log("Resposta salva com sucesso.");
+        } catch (erro) {
+            console.error("Erro ao salvar resposta:", erro);
+
+            alert(
+                "Não foi possível enviar sua resposta. Verifique a conexão e tente novamente."
+            );
+        } finally {
+            if (botao) {
+                botao.disabled = false;
+                botao.textContent = textoOriginal || "Enviar Resposta";
+            }
+        }
+    });
+}
