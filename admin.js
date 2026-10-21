@@ -35,7 +35,13 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 // Altere se o e-mail autorizado for outro.
-const EMAIL_ADMIN_AUTORIZADO = "gabriela.augusto@escola.pr.gov.br larissa.cys@escola.pr.gov.br bruno.weinschutz@escola.pr.gov.br marcelo.krayevski@escola.pr.gov.br";
+
+const EMAILS_ADMIN_AUTORIZADOS = [
+  "gabriela.augusto@escola.pr.gov.br",
+  "larissa.cys@escola.pr.gov.br",
+  "bruno.weinschutz@escola.pr.gov.br",
+  "marcelo.krayevski@escola.pr.gov.br"
+];
 
 const COLECAO_RESPOSTAS = "datavoto_cesf_respostas";
 
