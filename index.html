@@ -22,6 +22,14 @@
   </header>
 
   <main class="container">
+
+    <div class="admin-access">
+      <a href="admin.html" class="btn-admin" onclick="return confirmarAcessoAdmin(event)">
+        🔐 Acessar painel administrativo
+      </a>
+    </div>
+
+
     <form id="form-pesquisa" class="card-form">
 
       <!-- Seção 1: Perfil Socioeconômico -->
@@ -216,7 +224,7 @@
       <button type="submit" class="btn-submit">Enviar Resposta</button>
 
     </form>
-    
+
     <!-- Adicione isso logo após o </form> -->
     <div id="mensagem-sucesso" class="card-form" style="display: none; text-align: center; padding: 3rem 1.5rem;">
       <h2 style="color: var(--primary-dark); margin-bottom: 1rem; font-size: 1.8rem;">🎉 Pesquisa Concluída!</h2>

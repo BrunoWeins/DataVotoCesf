@@ -227,3 +227,22 @@ document.addEventListener("click", (evento) => {
 
     window.scrollTo({ top: 0, behavior: "smooth" });
 });
+
+
+function confirmarAcessoAdmin(event) {
+    event.preventDefault();
+  
+    const confirmar = confirm(
+      "Área restrita!\n\n" +
+      "Você está entrando no painel administrativo " +
+      "do DataVoto CESF.\n\n" +
+      "Deseja continuar?"
+    );
+  
+    if (confirmar) {
+      window.location.href = "admin.html";
+    }
+  
+    return false;
+  }
+  

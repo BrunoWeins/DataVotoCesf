@@ -19,12 +19,33 @@
       <h2 style="color: var(--primary-dark); margin-bottom: 1rem;">Acesso Administrativo</h2>
       <p style="margin-bottom: 1.5rem; color: var(--text-muted);">Digite a senha de acesso para visualizar os relatórios e gráficos da pesquisa.</p>
       
-      <form id="form-login">
-        <div class="form-control">
-          <input type="password" id="senha-admin" placeholder="Digite a senha administrativa" required>
-        </div>
-        <button type="submit" class="btn-submit">Entrar no Painel</button>
-      </form>
+      
+<form id="form-login">
+  <div class="form-control">
+    <input
+      type="email"
+      id="email-admin"
+      placeholder="Digite seu e-mail administrativo"
+      autocomplete="username"
+      required
+    >
+  </div>
+
+  <div class="form-control">
+    <input
+      type="password"
+      id="senha-admin"
+      placeholder="Digite sua senha"
+      autocomplete="current-password"
+      required
+    >
+  </div>
+
+  <button type="submit" class="btn-submit">
+    Entrar no Painel
+  </button>
+</form>
+
     </div>
   </div>
 

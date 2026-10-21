@@ -204,3 +204,55 @@ select:focus {
   font-size: 0.85rem;
   color: var(--text-muted);
 }
+
+
+/* Acesso ao painel administrativo */
+.admin-access {
+  display: flex;
+  justify-content: center;
+  margin: 30px auto 20px;
+  padding: 0 16px;
+}
+
+.btn-admin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  padding: 13px 24px;
+  border: 1px solid #0056b3;
+  border-radius: 10px;
+
+  background: #003366;
+  color: #ffffff;
+
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+
+  box-shadow: 0 4px 12px rgba(0, 51, 102, 0.18);
+  transition: background 0.25s ease,
+              transform 0.25s ease,
+              box-shadow 0.25s ease;
+}
+
+.btn-admin:hover {
+  background: #0056b3;
+  transform: translateY(-2px);
+  box-shadow: 0 7px 18px rgba(0, 86, 179, 0.25);
+}
+
+.btn-admin:focus-visible {
+  outline: 3px solid #80bdff;
+  outline-offset: 4px;
+}
+
+@media (max-width: 480px) {
+  .btn-admin {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 14px;
+  }
+}

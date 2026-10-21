@@ -1,4 +1,6 @@
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
+
 import {
   getFirestore,
   collection,
@@ -7,238 +9,449 @@ import {
   doc
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
 
-// Configuração do Firebase
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
+
+// ======================================================
+// 1. CONFIGURAÇÃO DO FIREBASE
+// ======================================================
+
 const firebaseConfig = {
-  apiKey: "AIzaSyB6tekjyarX_aKwfvCe-CeEvs0qLEUuASLQ",
-  authDomain: "datavotocesf.firebaseapp.com",
-  projectId: "datavotocesf",
-  storageBucket: "datavotocesf.firebasestorage.app",
-  messagingSenderId: "794786594690",
-  appId: "1:794786594690:web:2d86dcb5a9f3577ecc199b",
-  measurementId: "G-EHRDCTFCFH"
+  apiKey: "AIzaSyAjZ2u0T-UM8qkX5ZOsE2x7KACMBL4iz-A",
+  authDomain: "datavotocesf-brugala.firebaseapp.com",
+  databaseURL: "https://datavotocesf-brugala-default-rtdb.firebaseio.com",
+  projectId: "datavotocesf-brugala",
+  storageBucket: "datavotocesf-brugala.firebasestorage.app",
+  messagingSenderId: "111172208486",
+  appId: "1:111172208486:web:8d016eb2061c508b216aa7"
 };
 
-// Inicialização
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
-// Definindo a senha de acesso ao painel
-const SENHA_CORRETA = "admin123";
+// Altere se o e-mail autorizado for outro.
+const EMAIL_ADMIN_AUTORIZADO = "gabriela.augusto@escola.pr.gov.br larissa.cys@escola.pr.gov.br bruno.weinschutz@escola.pr.gov.br marcelo.krayevski@escola.pr.gov.br";
 
-// Seleção de elementos do DOM
+const COLECAO_RESPOSTAS = "datavoto_cesf_respostas";
+
+// ======================================================
+// 2. ELEMENTOS DA PÁGINA
+// ======================================================
+
 const formLogin = document.getElementById("form-login");
 const inputSenha = document.getElementById("senha-admin");
+const inputEmail = document.getElementById("email-admin");
+
 const loginContainer = document.getElementById("login-container");
 const dashboardContainer = document.getElementById("dashboard-container");
+
 const btnLogout = document.getElementById("btn-logout");
 const btnLimparDados = document.getElementById("btn-limpar-dados");
 
-// Controle de instâncias dos gráficos para evitar erros de re-renderização
 let instanciacoesGraficos = {};
+let carregandoPainel = false;
 
-// Controle de Login
-formLogin.addEventListener("submit", (e) => {
-  e.preventDefault();
-  if (inputSenha.value === SENHA_CORRETA) {
-    loginContainer.style.display = "none";
-    dashboardContainer.style.display = "block";
-    carregarDadosEGerarRelatorios();
-  } else {
-    alert("Senha incorreta! Tente novamente.");
+// ======================================================
+// 3. LOGIN COM FIREBASE AUTHENTICATION
+// ======================================================
+
+formLogin.addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+
+  const email = inputEmail.value.trim();
+  const senha = inputSenha.value;
+  const botao = formLogin.querySelector('button[type="submit"]');
+
+  if (botao) {
+    botao.disabled = true;
+    botao.textContent = "Entrando...";
+  }
+
+  try {
+    await signInWithEmailAndPassword(auth, email, senha);
+    // A verificação de autorização acontece no observador abaixo.
+  } catch (erro) {
+    console.error("Erro no login:", erro);
+
+    alert(
+      "Não foi possível entrar. Confira o e-mail e a senha " +
+      "e verifique se a conta está cadastrada no Firebase."
+    );
+
     inputSenha.value = "";
+  } finally {
+    if (botao) {
+      botao.disabled = false;
+      botao.textContent = "Entrar no Painel";
+    }
   }
 });
 
-// Logout
-btnLogout.addEventListener("click", () => {
-  dashboardContainer.style.display = "none";
-  loginContainer.style.display = "block";
-  inputSenha.value = "";
+// ======================================================
+// 4. VERIFICAÇÃO DA SESSÃO E AUTORIZAÇÃO
+// ======================================================
+
+onAuthStateChanged(auth, async (usuario) => {
+  if (!usuario) {
+    carregandoPainel = false;
+    dashboardContainer.style.display = "none";
+    loginContainer.style.display = "block";
+    return;
+  }
+
+  const autorizado =
+    usuario.email === EMAIL_ADMIN_AUTORIZADO &&
+    usuario.emailVerified === true;
+
+  if (!autorizado) {
+    dashboardContainer.style.display = "none";
+    loginContainer.style.display = "block";
+
+    alert(
+      "Esta conta não tem autorização para acessar o painel. " +
+      "Use a conta administrativa autorizada e verifique seu e-mail."
+    );
+
+    await signOut(auth);
+    return;
+  }
+
+  loginContainer.style.display = "none";
+  dashboardContainer.style.display = "block";
+
+  if (!carregandoPainel) {
+    carregandoPainel = true;
+
+    try {
+      await carregarDadosEGerarRelatorios();
+    } finally {
+      carregandoPainel = false;
+    }
+  }
 });
 
-// Função principal de carregamento e agregação dos dados
+// ======================================================
+// 5. SAIR DO PAINEL
+// ======================================================
+
+btnLogout.addEventListener("click", async () => {
+  try {
+    await signOut(auth);
+    inputSenha.value = "";
+    inputEmail.value = "";
+  } catch (erro) {
+    console.error("Erro ao sair:", erro);
+    alert("Não foi possível encerrar a sessão.");
+  }
+});
+
+// ======================================================
+// 6. CARREGAR RESPOSTAS E ATUALIZAR O PAINEL
+// ======================================================
+
 async function carregarDadosEGerarRelatorios() {
   try {
-    const querySnapshot = await getDocs(collection(db, "datavoto_cesf_respostas"));
+    const consulta = await getDocs(
+      collection(db, COLECAO_RESPOSTAS)
+    );
+
     const respostas = [];
 
-    querySnapshot.forEach((documento) => {
+    consulta.forEach((documento) => {
       respostas.push(documento.data());
     });
 
     const total = respostas.length;
+
     document.getElementById("total-respostas").textContent = total;
 
     if (total === 0) {
       document.getElementById("media-moradores").textContent = "0";
       document.getElementById("media-trabalhadores").textContent = "0";
+
       limparGraficosExistentes();
       return;
     }
 
-    // 1. Cálculo das Média de Moradores e Trabalhadores
-    const somaMoradores = respostas.reduce((acc, curr) => acc + (Number(curr.moradores) || 0), 0);
-    const somaTrabalhadores = respostas.reduce((acc, curr) => acc + (Number(curr.trabalhadores) || 0), 0);
+    // Médias de moradores e trabalhadores
+    const somaMoradores = respostas.reduce(
+      (total, resposta) =>
+        total + (Number(resposta.moradores) || 0),
+      0
+    );
 
-    const mediaMoradores = (somaMoradores / total).toFixed(1);
-    const mediaTrabalhadores = (somaTrabalhadores / total).toFixed(1);
+    const somaTrabalhadores = respostas.reduce(
+      (total, resposta) =>
+        total + (Number(resposta.trabalhadores) || 0),
+      0
+    );
 
-    document.getElementById("media-moradores").textContent = mediaMoradores;
-    document.getElementById("media-trabalhadores").textContent = mediaTrabalhadores;
+    document.getElementById("media-moradores").textContent =
+      (somaMoradores / total).toFixed(1);
 
-    // 2. Processamento para Gráficos
-    const contagemPresidencia = contagemFrequencia(respostas, "votoPresidente");
-    const contagemCerteza = contagemFrequencia(respostas, "certezaVoto");
-    const contagemBairros = contagemFrequencia(respostas, "bairro");
+    document.getElementById("media-trabalhadores").textContent =
+      (somaTrabalhadores / total).toFixed(1);
 
-    // Contagem de Pautas (Array)
+    // Contagem das respostas
+    const contagemPresidencia = contagemFrequencia(
+      respostas,
+      "votoPresidente"
+    );
+
+    const contagemCerteza = contagemFrequencia(
+      respostas,
+      "certezaVoto"
+    );
+
+    const contagemBairros = contagemFrequencia(
+      respostas,
+      "bairro"
+    );
+
+    // Contagem de pautas prioritárias
     const contagemPautas = {};
-    respostas.forEach(r => {
-      if (Array.isArray(r.pautas)) {
-        r.pautas.forEach(pauta => {
-          contagemPautas[pauta] = (contagemPautas[pauta] || 0) + 1;
+
+    respostas.forEach((resposta) => {
+      if (Array.isArray(resposta.pautas)) {
+        resposta.pautas.forEach((pauta) => {
+          contagemPautas[pauta] =
+            (contagemPautas[pauta] || 0) + 1;
         });
       }
     });
 
-    // 3. Renderização dos Gráficos com Chart.js
-    renderizarGraficoPie("chartPresidencia", Object.keys(contagemPresidencia), Object.values(contagemPresidencia));
-    renderizarGraficoDoughnut("chartCerteza", Object.keys(contagemCerteza), Object.values(contagemCerteza));
-    renderizarGraficoBar("chartBairros", Object.keys(contagemBairros), Object.values(contagemBairros), "Respostas por Bairro");
-    renderizarGraficoBar("chartPautas", Object.keys(contagemPautas), Object.values(contagemPautas), "Votos em Pautas");
+    // Renderização dos gráficos
+    renderizarGraficoPie(
+      "chartPresidencia",
+      Object.keys(contagemPresidencia),
+      Object.values(contagemPresidencia)
+    );
 
-  } catch (error) {
-    console.error("Erro ao carregar dados do Firestore:", error);
-    alert("Erro ao carregar dados do Firestore.");
+    renderizarGraficoDoughnut(
+      "chartCerteza",
+      Object.keys(contagemCerteza),
+      Object.values(contagemCerteza)
+    );
+
+    renderizarGraficoBar(
+      "chartBairros",
+      Object.keys(contagemBairros),
+      Object.values(contagemBairros),
+      "Respostas por Bairro"
+    );
+
+    renderizarGraficoBar(
+      "chartPautas",
+      Object.keys(contagemPautas),
+      Object.values(contagemPautas),
+      "Respostas por Pauta"
+    );
+
+  } catch (erro) {
+    console.error("Erro ao carregar dados do Firestore:", erro);
+
+    alert(
+      "Não foi possível carregar os dados. " +
+      "Confira o login e as regras do Firestore."
+    );
   }
 }
 
-// Funcionalidade do Botão Limpar Base de Dados
-if (btnLimparDados) {
-  btnLimparDados.addEventListener("click", async () => {
-    // Confirmação dupla de segurança
-    const confirmacao1 = confirm("⚠️ ATENÇÃO: Tem certeza de que deseja apagar TODAS as respostas da base de dados?");
-    
-    if (!confirmacao1) return;
+// ======================================================
+// 7. LIMPAR A BASE DE DADOS
+// ======================================================
 
-    const confirmacao2 = prompt('Digite "DELETAR" para confirmar a exclusão permanente dos dados:');
+btnLimparDados.addEventListener("click", async () => {
+  const usuario = auth.currentUser;
 
-    if (confirmacao2 !== "DELETAR") {
-      alert("Ação cancelada. A palavra de confirmação digitada está incorreta.");
+  if (
+    !usuario ||
+    usuario.email !== EMAIL_ADMIN_AUTORIZADO ||
+    !usuario.emailVerified
+  ) {
+    alert("Você não tem autorização para apagar os dados.");
+    return;
+  }
+
+  const confirmacao1 = confirm(
+    "ATENÇÃO: deseja realmente apagar TODAS as respostas da pesquisa?"
+  );
+
+  if (!confirmacao1) return;
+
+  const confirmacao2 = prompt(
+    'Para confirmar a exclusão permanente, digite "DELETAR":'
+  );
+
+  if (confirmacao2 !== "DELETAR") {
+    alert("Exclusão cancelada.");
+    return;
+  }
+
+  btnLimparDados.disabled = true;
+  btnLimparDados.textContent = "Apagando dados...";
+
+  try {
+    const consulta = await getDocs(
+      collection(db, COLECAO_RESPOSTAS)
+    );
+
+    if (consulta.empty) {
+      alert("A base de dados já está vazia!");
       return;
     }
 
-    btnLimparDados.disabled = true;
-    btnLimparDados.textContent = "Apagando dados...";
+    const exclusoes = [];
 
-    try {
-      const querySnapshot = await getDocs(collection(db, "datavoto_cesf_respostas"));
+    consulta.forEach((documento) => {
+      exclusoes.push(
+        deleteDoc(doc(db, COLECAO_RESPOSTAS, documento.id))
+      );
+    });
 
-      if (querySnapshot.empty) {
-        alert("A base de dados já está vazia!");
-        return;
-      }
+    await Promise.all(exclusoes);
 
-      // Deleta cada documento da coleção
-      const promisesDelecao = [];
-      querySnapshot.forEach((documento) => {
-        promisesDelecao.push(deleteDoc(doc(db, "datavoto_cesf_respostas", documento.id)));
-      });
+    alert("Base de dados limpa com sucesso!");
 
-      await Promise.all(promisesDelecao);
+    await carregarDadosEGerarRelatorios();
 
-      alert("Base de dados limpa com sucesso!");
-      
-      // Recarrega as métricas e limpa os gráficos na tela
-      carregarDadosEGerarRelatorios();
+  } catch (erro) {
+    console.error("Erro ao limpar a base de dados:", erro);
 
-    } catch (erro) {
-      console.error("Erro ao limpar a base de dados:", erro);
-      alert("Ocorreu um erro ao tentar apagar os dados. Verifique a conexão ou as permissões no Firestore.");
-    } finally {
-      btnLimparDados.disabled = false;
-      btnLimparDados.textContent = "🗑️ Limpar Base de Dados";
-    }
-  });
-}
+    alert(
+      "Não foi possível apagar os dados. " +
+      "Confira as permissões administrativas do Firestore."
+    );
+  } finally {
+    btnLimparDados.disabled = false;
+    btnLimparDados.textContent = "🗑️ Limpar Base de Dados";
+  }
+});
 
-// Função auxiliar para contar frequências
-function contagemFrequencia(arr, chave) {
-  return arr.reduce((acc, obj) => {
-    const valor = obj[chave] || "Não Informado";
-    acc[valor] = (acc[valor] || 0) + 1;
-    return acc;
+// ======================================================
+// 8. FUNÇÕES AUXILIARES
+// ======================================================
+
+function contagemFrequencia(respostas, chave) {
+  return respostas.reduce((contagem, resposta) => {
+    const valor = resposta[chave] || "Não Informado";
+
+    contagem[valor] = (contagem[valor] || 0) + 1;
+
+    return contagem;
   }, {});
 }
 
-// Destruição de gráficos existentes antes de desenhar novos
 function destruirGraficoSeExiste(idElemento) {
   if (instanciacoesGraficos[idElemento]) {
     instanciacoesGraficos[idElemento].destroy();
+    delete instanciacoesGraficos[idElemento];
   }
 }
 
 function limparGraficosExistentes() {
-  Object.keys(instanciacoesGraficos).forEach(id => {
+  Object.keys(instanciacoesGraficos).forEach((id) => {
     instanciacoesGraficos[id].destroy();
   });
+
   instanciacoesGraficos = {};
 }
 
-/* ==========================================================================
-   Funções de Renderização com Chart.js (Estilo em Tons de Azul)
-   ========================================================================== */
-const CORES_AZUL = ["#003366", "#0056b3", "#3385ff", "#80bdff", "#b3d7ff", "#002244", "#004488"];
+// ======================================================
+// 9. CONFIGURAÇÃO DOS GRÁFICOS
+// ======================================================
+
+const CORES_AZUL = [
+  "#003366",
+  "#0056b3",
+  "#3385ff",
+  "#80bdff",
+  "#b3d7ff",
+  "#002244",
+  "#004488"
+];
 
 function renderizarGraficoPie(idElemento, labels, data) {
   destruirGraficoSeExiste(idElemento);
-  instanciacoesGraficos[idElemento] = new Chart(document.getElementById(idElemento), {
-    type: 'pie',
-    data: {
-      labels: labels,
-      datasets: [{
-        data: data,
-        backgroundColor: CORES_AZUL
-      }]
+
+  instanciacoesGraficos[idElemento] = new Chart(
+    document.getElementById(idElemento),
+    {
+      type: "pie",
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: CORES_AZUL
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true
+      }
     }
-  });
+  );
 }
 
 function renderizarGraficoDoughnut(idElemento, labels, data) {
   destruirGraficoSeExiste(idElemento);
-  instanciacoesGraficos[idElemento] = new Chart(document.getElementById(idElemento), {
-    type: 'doughnut',
-    data: {
-      labels: labels,
-      datasets: [{
-        data: data,
-        backgroundColor: CORES_AZUL
-      }]
+
+  instanciacoesGraficos[idElemento] = new Chart(
+    document.getElementById(idElemento),
+    {
+      type: "doughnut",
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: CORES_AZUL
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true
+      }
     }
-  });
+  );
 }
 
 function renderizarGraficoBar(idElemento, labels, data, labelDataset) {
   destruirGraficoSeExiste(idElemento);
-  instanciacoesGraficos[idElemento] = new Chart(document.getElementById(idElemento), {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: labelDataset,
-        data: data,
-        backgroundColor: '#0056b3',
-        borderRadius: 4
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false }
+
+  instanciacoesGraficos[idElemento] = new Chart(
+    document.getElementById(idElemento),
+    {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          label: labelDataset,
+          data,
+          backgroundColor: "#0056b3",
+          borderRadius: 4
+        }]
       },
-      scales: {
-        y: { beginAtZero: true, ticks: { precision: 0 } }
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              precision: 0
+            }
+          }
+        }
       }
     }
-  });
+  );
 }
