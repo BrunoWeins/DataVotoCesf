@@ -81,6 +81,21 @@ formLogin.addEventListener("submit", async (evento) => {
 
   try {
     await signInWithEmailAndPassword(auth, email, senha);
+
+    const usuario = auth.currentUser;
+
+    if (usuario && !usuario.emailVerified) {
+      await sendEmailVerification(usuario);
+
+      alert(
+        "Enviamos um e-mail de verificação para " +
+        usuario.email +
+        ". Abra sua caixa de entrada e clique no link para confirmar."
+      );
+
+      await signOut(auth);
+    }
+
     // A verificação de autorização acontece no observador abaixo.
   } catch (erro) {
     console.error("Erro no login:", erro);
@@ -112,8 +127,10 @@ onAuthStateChanged(auth, async (usuario) => {
   }
 
   const autorizado =
-    usuario.email === EMAILS_ADMIN_AUTORIZADOS &&
-    usuario.emailVerified === true;
+    EMAILS_ADMIN_AUTORIZADOS.includes(
+      (usuario.email || "").trim().toLowerCase()
+    ) && usuario.emailVerified === true;
+
 
 
   console.log("E-mail conectado:", usuario.email);
@@ -282,14 +299,17 @@ async function carregarDadosEGerarRelatorios() {
 btnLimparDados.addEventListener("click", async () => {
   const usuario = auth.currentUser;
 
+
   if (
     !usuario ||
-    usuario.email !== EMAILS_ADMIN_AUTORIZADOS ||
+    !EMAILS_ADMIN_AUTORIZADOS.includes(
+      (usuario.email || "").trim().toLowerCase()
+    ) ||
     !usuario.emailVerified
   ) {
     alert("Você não tem autorização para apagar os dados.");
     return;
-  }
+  };
 
   const confirmacao1 = confirm(
     "ATENÇÃO: deseja realmente apagar TODAS as respostas da pesquisa?"
