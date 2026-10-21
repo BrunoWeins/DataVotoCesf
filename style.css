@@ -2,18 +2,27 @@
    Variáveis de Cor e Configurações Globais (Paleta Azul)
    ========================================================================== */
 :root {
-  --primary-dark: #003366;      /* Azul escuro (Cabeçalho/Destaques) */
-  --primary: #0056b3;           /* Azul principal */
-  --primary-light: #e6f0fa;     /* Azul bem claro (Fundos de destaque) */
-  --primary-hover: #004085;     /* Azul para estados de hover */
-  
-  --bg-color: #f4f7f9;          /* Fundo da página */
-  --card-bg: #ffffff;           /* Fundo dos cartões */
-  
-  --text-color: #2b303a;        /* Cor do texto principal */
-  --text-muted: #6c757d;       /* Texto secundário */
-  --border-color: #ced4da;      /* Bordas dos campos */
-  
+  --primary-dark: #003366;
+  /* Azul escuro (Cabeçalho/Destaques) */
+  --primary: #0056b3;
+  /* Azul principal */
+  --primary-light: #e6f0fa;
+  /* Azul bem claro (Fundos de destaque) */
+  --primary-hover: #004085;
+  /* Azul para estados de hover */
+
+  --bg-color: #f4f7f9;
+  /* Fundo da página */
+  --card-bg: #ffffff;
+  /* Fundo dos cartões */
+
+  --text-color: #2b303a;
+  /* Cor do texto principal */
+  --text-muted: #6c757d;
+  /* Texto secundário */
+  --border-color: #ced4da;
+  /* Bordas dos campos */
+
   --radius: 8px;
   --transition: all 0.25s ease-in-out;
 }
@@ -234,8 +243,8 @@ select:focus {
 
   box-shadow: 0 4px 12px rgba(0, 51, 102, 0.18);
   transition: background 0.25s ease,
-              transform 0.25s ease,
-              box-shadow 0.25s ease;
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
 .btn-admin:hover {
