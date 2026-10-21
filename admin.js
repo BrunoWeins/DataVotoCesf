@@ -13,7 +13,8 @@ import {
   getAuth,
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  sendEmailVerification
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
 
 // ======================================================
@@ -99,7 +100,7 @@ formLogin.addEventListener("submit", async (evento) => {
 });
 
 // ======================================================
-// 4. VERIFICAÇÃO DA SESSÃO E AUTORIZAÇÃO
+// 4. VERIFICAÇÃO DA SESSÃO E ÇÃO
 // ======================================================
 
 onAuthStateChanged(auth, async (usuario) => {
@@ -111,8 +112,14 @@ onAuthStateChanged(auth, async (usuario) => {
   }
 
   const autorizado =
-    usuario.email === EMAIL_ADMIN_AUTORIZADO &&
+    usuario.email === EMAILS_ADMIN_AUTORIZADOS &&
     usuario.emailVerified === true;
+
+
+  console.log("E-mail conectado:", usuario.email);
+  console.log("E-mail verificado:", usuario.emailVerified);
+  console.log("E-mails permitidos:", EMAILS_ADMIN_AUTORIZADOS);
+
 
   if (!autorizado) {
     dashboardContainer.style.display = "none";
@@ -277,7 +284,7 @@ btnLimparDados.addEventListener("click", async () => {
 
   if (
     !usuario ||
-    usuario.email !== EMAIL_ADMIN_AUTORIZADO ||
+    usuario.email !== EMAILS_ADMIN_AUTORIZADOS ||
     !usuario.emailVerified
   ) {
     alert("Você não tem autorização para apagar os dados.");
