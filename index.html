@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
 
   <header class="header">
@@ -21,7 +23,7 @@
 
   <main class="container">
     <form id="form-pesquisa" class="card-form">
-      
+
       <!-- Seção 1: Perfil Socioeconômico -->
       <fieldset class="form-group-section">
         <legend>Perfil Socioeconômico</legend>
@@ -40,7 +42,7 @@
           </select>
         </div>
 
-         <!-- Gênero -->
+        <!-- Gênero -->
         <div class="form-control">
           <label for="genero">Gênero *</label>
           <select id="genero" required>
@@ -50,7 +52,7 @@
             <option value="outro">Outro</option>
           </select>
         </div>
-        
+
         <!-- Bairro de Campo Largo -->
         <div class="form-control">
           <label for="bairro">Bairro em Campo Largo *</label>
@@ -214,6 +216,20 @@
       <button type="submit" class="btn-submit">Enviar Resposta</button>
 
     </form>
+    
+    <!-- Adicione isso logo após o </form> -->
+    <div id="mensagem-sucesso" class="card-form" style="display: none; text-align: center; padding: 3rem 1.5rem;">
+      <h2 style="color: var(--primary-dark); margin-bottom: 1rem; font-size: 1.8rem;">🎉 Pesquisa Concluída!</h2>
+      <p style="font-size: 1.1rem; color: var(--text-color); margin-bottom: 1.5rem;">
+        Sua resposta foi gravada com sucesso no nosso banco de dados.
+      </p>
+      <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 2rem;">
+        Muito obrigado por contribuir com a pesquisa do DataVotoCesf.
+      </p>
+      <button id="btn-nova-resposta" class="btn-submit" style="max-width: 280px; margin: 0 auto;">
+        Responder Novamente
+      </button>
+    </div>
   </main>
 
   <footer class="footer">
@@ -223,4 +239,5 @@
   <!-- Script principal carregado como módulo para o colega do Firebase integrar -->
   <script type="module" src="script.js"></script>
 </body>
+
 </html>

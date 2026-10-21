@@ -13,11 +13,7 @@ import {
     signInAnonymously
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
 
-// ========================================
-// CONFIGURAÇÃO DO FIREBASE
-// Projeto: datavotocesf-brugala
-// ========================================
-
+// Configuração do Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyAjZ2u0T-UM8qkX5ZOsE2x7KACMBL4iz-A",
     authDomain: "datavotocesf-brugala.firebaseapp.com",
@@ -28,122 +24,87 @@ const firebaseConfig = {
     appId: "1:111172208486:web:8d016eb2061c508b216aa7"
 };
 
-// ========================================
-// INICIALIZAÇÃO
-// ========================================
-
+// Inicialização
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-console.log("Firebase inicializado!");
-console.log("Firestore preparado!");
-
-// ========================================
-// AUTENTICAÇÃO ANÔNIMA
-// ========================================
-
+// Autenticação anônima
 const autenticacaoPronta = signInAnonymously(auth)
     .then(() => {
         console.log("Autenticação anônima concluída!");
     })
     .catch((erro) => {
-        console.error("Erro na autenticação anônima:", erro);
+        console.error("Erro na autenticação:", erro);
         throw erro;
     });
 
-// ========================================
-// SALVAR RESPOSTA NO FIRESTORE
-// ========================================
+// Salvar resposta no Firestore
 
 async function salvarResposta(dados) {
+    console.log("1. Aguardando autenticação...");
+
     await autenticacaoPronta;
 
-    const documento = await addDoc(
-        collection(db, "datavoto_cesf_respostas"),
-        {
-            faixaEtaria: dados.faixaEtaria,
-            genero: dados.genero,
-            bairro: dados.bairro,
-            rotina: dados.rotina,
-            rendaFamiliar: dados.rendaFamiliar,
-            moradores: dados.moradores,
-            trabalhadores: dados.trabalhadores,
-            certezaVoto: dados.certezaVoto,
-            votoPresidente: dados.votoPresidente,
-            pautas: dados.pautas,
-            criadoEm: serverTimestamp()
-        }
-    );
+    console.log("2. Autenticação concluída!");
+    console.log("3. Tentando salvar no Firestore...");
 
-    console.log("Documento salvo:", documento.id);
+
+    const documento = await Promise.race([
+        addDoc(collection(db, "datavoto_cesf_respostas"), {
+            ...dados,
+            criadoEm: serverTimestamp()
+        }),
+        new Promise((_, rejeitar) => {
+            setTimeout(() => {
+                rejeitar(new Error(
+                    "Tempo esgotado: o Firestore não confirmou a gravação em 15 segundos."
+                ));
+            }, 15000);
+        })
+    ]);
+
+
+    console.log("4. Resposta salva! ID:", documento.id);
 
     return documento.id;
 }
 
-// ========================================
-// FORMULÁRIO DE PESQUISA
-// ========================================
 
+// Manipulação do formulário
 const formulario = document.getElementById("form-pesquisa");
+const mensagemSucesso = document.getElementById("mensagem-sucesso");
 
 if (formulario) {
     formulario.addEventListener("submit", async (evento) => {
         evento.preventDefault();
 
-        // Identifica as seções do formulário
-        const secoes = formulario.querySelectorAll(
-            ".form-group-section"
-        );
+        // Captura dos campos
+        const faixaEtaria =
+            document.getElementById("faixa-etaria")?.value || "";
 
-        const secaoSocioeconomica = secoes[0];
-        const secaoEleitoral = secoes[1];
+        const genero =
+            document.getElementById("genero")?.value || "";
 
-        if (!secaoSocioeconomica || !secaoEleitoral) {
-            alert("Não foi possível localizar os campos do formulário.");
-            return;
-        }
+        const bairro =
+            document.getElementById("bairro")?.value || "";
 
-        // Captura os campos socioeconômicos
-        const selects =
-            secaoSocioeconomica.querySelectorAll("select");
+        const rendaFamiliar =
+            document.getElementById("renda-familiar")?.value || "";
 
-        const faixaEtaria = selects[0]?.value ?? "";
-        const genero = selects[1]?.value ?? "";
-        const bairro = selects[2]?.value ?? "";
-        const rendaFamiliar = selects[3]?.value ?? "";
-
-        // Captura a rotina
-        const rotinaSelecionada = formulario.querySelector(
-            'input[name="rotina"]:checked'
-        );
-
-        // Captura o grau de certeza do voto
-        const camposCerteza =
-            secaoEleitoral.querySelector(".form-control");
+        const rotinaSelecionada =
+            formulario.querySelector('input[name="rotina"]:checked')?.value || "";
 
         const certezaSelecionada =
-            camposCerteza?.querySelector(
-                'input[type="radio"]:checked'
-            );
-
-        // Captura a intenção de voto presidencial
-        const camposVotoPresidente =
-            secaoEleitoral.querySelectorAll(".form-control")[1];
+            formulario.querySelector('input[name="certeza-voto"]:checked')?.value || "";
 
         const votoSelecionado =
-            camposVotoPresidente?.querySelector(
-                'input[name="voto-presidente"]:checked'
-            );
+            formulario.querySelector('input[name="voto-presidente"]:checked')?.value || "";
 
-        // Captura as pautas selecionadas
         const pautas = [
-            ...formulario.querySelectorAll(
-                'input[name="pautas"]:checked'
-            )
+            ...formulario.querySelectorAll('input[name="pautas"]:checked')
         ].map((opcao) => opcao.value);
 
-        // Captura os números de moradores e trabalhadores
         const moradoresTexto =
             document.getElementById("num-moradores")?.value ?? "";
 
@@ -153,37 +114,27 @@ if (formulario) {
         const moradores = Number(moradoresTexto);
         const trabalhadores = Number(trabalhadoresTexto);
 
-        // ========================================
-        // VALIDAÇÕES
-        // ========================================
-
-        if (
-            !faixaEtaria ||
-            !genero ||
-            !bairro ||
-            !rendaFamiliar
-        ) {
-            alert("Preencha os campos socioeconômicos obrigatórios.");
+        // Validações
+        if (!faixaEtaria || !genero || !bairro || !rendaFamiliar) {
+            alert("Por favor, preencha todos os campos do Perfil Socioeconômico.");
             return;
         }
 
         if (!rotinaSelecionada) {
-            alert("Selecione sua rotina atual.");
+            alert("Por favor, selecione sua rotina atual.");
             return;
         }
 
         if (
             moradoresTexto === "" ||
             trabalhadoresTexto === "" ||
-            !Number.isInteger(moradores) ||
-            !Number.isInteger(trabalhadores) ||
             moradores < 1 ||
-            moradores > 30 ||
             trabalhadores < 0 ||
             trabalhadores > moradores
         ) {
             alert(
-                "Confira os números de moradores e trabalhadores da residência."
+                "Confira os números de moradores e trabalhadores. " +
+                "O número de trabalhadores não pode ser maior que o de moradores."
             );
             return;
         }
@@ -194,7 +145,7 @@ if (formulario) {
         }
 
         if (!votoSelecionado) {
-            alert("Selecione uma opção de voto presidencial.");
+            alert("Selecione uma opção de voto para presidente.");
             return;
         }
 
@@ -203,24 +154,22 @@ if (formulario) {
             return;
         }
 
-        // Organiza os dados para envio
         const dados = {
             faixaEtaria,
             genero,
             bairro,
-            rotina: rotinaSelecionada.value,
+            rotina: rotinaSelecionada,
             rendaFamiliar,
             moradores,
             trabalhadores,
-            certezaVoto: certezaSelecionada.value,
-            votoPresidente: votoSelecionado.value,
+            certezaVoto: certezaSelecionada,
+            votoPresidente: votoSelecionado,
             pautas
         };
 
-        // Evita envios duplicados durante o processamento
         const botao = formulario.querySelector(".btn-submit");
-        const textoOriginal = botao?.textContent;
 
+        // Evita envios repetidos enquanto salva
         if (botao) {
             botao.disabled = true;
             botao.textContent = "Enviando...";
@@ -229,30 +178,52 @@ if (formulario) {
         try {
             await salvarResposta(dados);
 
-            alert("Resposta enviada com sucesso!");
-
-            formulario.reset();
-
             console.log("Resposta salva com sucesso!");
 
+            // Mostra a confirmação somente depois de salvar
+            formulario.style.display = "none";
+
+            if (mensagemSucesso) {
+                mensagemSucesso.style.display = "block";
+            } else {
+                alert("Resposta enviada com sucesso!");
+            }
+
+            window.scrollTo({ top: 0, behavior: "smooth" });
+
         } catch (erro) {
-            console.error("Erro ao salvar resposta:", erro);
+            console.error("Erro ao salvar a resposta:", erro);
 
             alert(
                 "Não foi possível enviar sua resposta. " +
-                "Verifique a autenticação e as regras do Firestore."
+                "Verifique sua conexão e tente novamente. " +
+                "Se o erro continuar, abra o console com F12."
             );
 
         } finally {
-            if (botao) {
+            // Restaura o botão caso o formulário continue visível
+            if (botao && formulario.style.display !== "none") {
                 botao.disabled = false;
-                botao.textContent =
-                    textoOriginal || "Enviar Resposta";
+                botao.textContent = "Enviar Resposta";
             }
         }
     });
-} else {
-    console.warn(
-        "Formulário form-pesquisa não encontrado nesta página."
-    );
 }
+
+// Botão para responder novamente
+document.addEventListener("click", (evento) => {
+    const botaoNovaResposta = evento.target.closest("#btn-nova-resposta");
+
+    if (!botaoNovaResposta) return;
+
+    if (mensagemSucesso) {
+        mensagemSucesso.style.display = "none";
+    }
+
+    if (formulario) {
+        formulario.reset();
+        formulario.style.display = "block";
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+});
